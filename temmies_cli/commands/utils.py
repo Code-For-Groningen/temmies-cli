@@ -14,7 +14,7 @@ def parse_path(themis, path_str):
         year_path, course_tag = parts[0], parts[1]
         remaining_parts = parts[2:]
 
-        year = themis.get_year(year_path)
+        year = themis.get_year(int(year_path.split('-')[0]), int(year_path.split('-')[1]))
         course = year.get_course_by_tag(course_tag)
 
         if remaining_parts:

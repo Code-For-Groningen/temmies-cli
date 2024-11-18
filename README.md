@@ -11,15 +11,17 @@ pipx install temmies-cli
 
 ## Usage
 
+## `temmies init <year>/<course>(/<assignment>) <path>`
+
 ### Initialize a new assignment
 ```bash
-temmies init {year}/{course}/{assignment} {path}
+temmies init <year>/<course>/<assignment> <path>
 ```
 > `temmies init 2024-2025/advalgo/labs-wk2 .`
 
 ### Initializing an entire course
 ```bash
-temmies init {year}/{course}
+temmies init <year>/<course>
 ```
 ### Optional args
 - `-s` : Search for an assignment instead of providing the link i.e. `temmies init -s "Advanced Algorithms" `.
@@ -48,7 +50,7 @@ Once the command is ran:
 │   │   │   ├── 3.out
 ```
 
-## `temmies submit {file}`
+## `temmies submit <file>`
 > `temmies submit main.c`
 Submits a file to the relevant assignment. You can pass multiple files as well.
 

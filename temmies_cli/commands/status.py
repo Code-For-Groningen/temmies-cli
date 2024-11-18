@@ -1,35 +1,81 @@
+import os
+import click
+from temmies.themis import Themis
+from temmies.exercise_group import ExerciseGroup
+from .utils import load_metadata
+from temmies.submission import Submission
+from datetime import datetime
+
+
 def status_overview(detail):
     """Show the current assignment's status."""
-    # Check for .temmies file
-    if not os.path.exists('.temmies'):
-        click.echo("No .temmies file found in the current directory. Please run 'temmies init' first.", err=True)
+    metadata = load_metadata()
+    if not metadata:
         return
 
-    # Load assignment metadata
-    with open('.temmies', 'r') as f:
-        metadata = dict(line.strip().split('=') for line in f)
-    assignment_id = metadata.get('assignment_id')
-    user = metadata.get('username')
-    if not assignment_id or not user:
-        click.echo("Assignment ID or username not found in .temmies file.", err=True)
-        return
+    username = metadata.get('username')
+    assignment_path = metadata.get('assignment_path')
 
-    # Authenticate the user using the username from .temmies
-    themis = Themis(user)
+    themis = Themis(username)
+    assignment = ExerciseGroup(
+        themis.session,
+        assignment_path,
+        title='',
+        parent=None,
+        submitable=True
+    )
 
-    # Retrieve the assignment object
-    assignment = themis.get_assignment_by_id(assignment_id)
-    if not assignment:
-        click.echo("Assignment not found. Please ensure you're in the correct directory.", err=True)
-        return
-
-    # Fetch and display status
     status = assignment.get_status()
-    click.echo(f"Assignment Status for '{assignment.name}':")
-    click.echo(f"- Due Date: {assignment.due_date}")
-    click.echo(f"- Submissions: {status['submission_count']}")
-    click.echo(f"- Last Submission: {status['last_submission']}")
-    if detail:
-        click.echo("Detailed Status:")
-        for detail_item in status['details']:
-            click.echo(f"- {detail_item}")
+
+    if status:
+        click.echo(f"Assignment: {assignment.title}")
+        click.echo(f"- Status: {status.get('status', 'Unknown')}")
+        if status.get('group'):
+            click.echo(f"- Group: {status['group']}")
+        if detail:
+            click.echo("+ Leading submission:")
+            extract_submission_info(status['leading'].get_info())
+    else:
+        click.echo("No status information available.")
+
+
+def extract_submission_info(submission_data):
+    """
+    Extracts and click.echos the most important information from a submission dictionary.
+    """
+    important_info = {
+        "Uploaded By": submission_data.get("uploaded_by"),
+        "Created On": normalize_timestamp(submission_data.get("created_on")),
+        "Updated On": normalize_timestamp(submission_data.get("updated_on")),
+        "Status": submission_data.get("status").split(": ")[1] if "status" in submission_data else None,
+        "Language": submission_data.get("language"),
+        "Files": submission_data.get("files", []),
+    }
+
+    for key, value in important_info.items():
+        if key == "Files":
+            click.echo(f"   + {len(value)} files submitted:")
+            for file_info in value:
+                click.echo(f"       + {file_info[0]}")
+            continue
+        if value:
+            click.echo(f"   + {key}: {value}")
+
+
+def normalize_timestamp(timestamp: str) -> str:
+    """
+    Normalizes and formats a timestamp string to a readable format.
+    Args:
+        timestamp (str): The timestamp string to normalize.
+    Returns:
+        str: The normalized timestamp in "YYYY-MM-DD HH:MM:SS" format.
+    """
+    try:
+        # Extract the datetime part before "GMT"
+        timestamp_part = timestamp.split("GMT")[0].strip()
+        # Parse the timestamp
+        dt = datetime.strptime(timestamp_part, "%a %b %d %Y %H:%M:%S")
+        # Return in "YYYY-MM-DD HH:MM:SS" format
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
+    except Exception as e:
+        return f"Invalid timestamp: {timestamp}"

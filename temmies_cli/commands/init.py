@@ -1,78 +1,79 @@
 import os
 import click
 from temmies.themis import Themis
-from temmies.exceptions.illegal_action import IllegalAction
+from temmies.exercise_group import ExerciseGroup
+from .utils import parse_path, create_assignment_files
+import tqdm
 
-def init_assignment(year_course_assignment, path, search):
-    """Initialize a new assignment."""
+
+def init_assignment(year_course_assignment, path, search, test_folder):
+    """
+    Initialize a new assignment or course.
+    """
     # Authenticate the user
     user = input("Enter your Themis username: ")
     themis = Themis(user)
 
     if search:
         click.echo(f"Searching for assignment: {search}")
-        # Use the temmies library to search for assignments
         assignment = search_assignment(themis, search)
         if not assignment:
             click.echo(f"Assignment '{search}' not found.", err=True)
             return
+        is_course = False
     elif year_course_assignment:
-        try:
-            year_str, course_name, assignment_name = year_course_assignment.split('/')
-            start_year, end_year = map(int, year_str.split('-'))
-            year = themis.get_year(start_year, end_year)
-            course = get_course_by_name(year, course_name)
-            assignment = get_assignment_by_name(course, assignment_name)
-        except ValueError:
-            click.echo("Invalid format. Please use {year}/{course}/{assignment}.", err=True)
+        result = parse_path(themis, year_course_assignment)
+        if not result:
+            click.echo(
+                "Invalid format. Use {startyear-endyear}/{courseTag} or {startyear-endyear}/{courseTag}/{assignment}.", err=True)
             return
+        year, course, assignment = result
+        is_course = assignment is None
     else:
-        click.echo("Either provide a year/course/assignment or use the -s option to search.", err=True)
+        click.echo(
+            "Provide a year/course/assignment or use -s to search.", err=True)
         return
 
-    # Download assignment files and set up directory
-    assignment_path = os.path.join(path, assignment_name)
-    os.makedirs(assignment_path, exist_ok=True)
-    create_assignment_files(assignment, assignment_path, user)
-    click.echo(f"Initialized assignment '{assignment_name}' in '{assignment_path}'.")
+    # Initialize the root path
+    if is_course:
+        root_path = os.path.join(path, course.title.lower().replace(" ", "_"))
+        click.echo(f"Initializing entire course '{course.title}'...")
+        create_assignment_files(course, root_path, user, test_folder)
+    else:
+        root_path = os.path.join(
+            path, assignment.title.lower().replace(" ", "_"))
+        click.echo(f"Initializing assignment '{assignment.title}'...")
+        create_assignment_files(assignment, root_path, user, test_folder)
 
-def search_assignment(themis, search_term):
-    """Search for an assignment by name."""
-    years = themis.all_years()
-    for year in years:
-        for course in year.get_courses():
-            for assignment in course.get_assignments():
-                if search_term.lower() in assignment.name.lower():
-                    return assignment
+    click.echo(f"Initialized at '{root_path}'.")
+
+
+def search_assignment(themis, search):
+    """
+    Search for an assignment by name across all years and courses.
+    """
+    for year in sorted(themis.all_years(), key=lambda x: x.year_path, reverse=True):
+        for course in tqdm.tqdm(year.all_courses(), desc=f"Searching courses in {year.year_path}"):
+            assignment = recursive_search(course, search)
+            if assignment:
+                click.echo(f"Found assignment: {assignment.title} in course: {
+                           course.title}, year: {year.year_path}")
+                return assignment
     return None
 
-def get_course_by_name(year, course_name):
-    """Get a course by name from a year."""
-    for course in year.get_courses():
-        if course_name.lower() == course.name.lower():
-            return course
-    raise IllegalAction(f"Course '{course_name}' not found in year {year.start}-{year.end}.")
 
-def get_assignment_by_name(course, assignment_name):
-    """Get an assignment by name from a course."""
-    for assignment in course.get_assignments():
-        if assignment_name.lower() == assignment.name.lower():
-            return assignment
-    raise IllegalAction(f"Assignment '{assignment_name}' not found in course '{course.name}'.")
-
-def create_assignment_files(assignment, assignment_path, user):
-    """Download assignment files and save them to the specified path."""
-    # Assuming the assignment object has a method to get files
-    files = assignment.get_files()
-    for file in files:
-        file_content = file.download()
-        file_path = os.path.join(assignment_path, file.name)
-        with open(file_path, 'wb') as f:
-            f.write(file_content)
-        click.echo(f"Downloaded {file.name} to {file_path}")
-    # Save assignment metadata
-    metadata_path = os.path.join(assignment_path, '.temmies')
-    with open(metadata_path, 'w') as f:
-        f.write(f"username={user}\n")
-        f.write(f"assignment_id={assignment.id}\n")
-    click.echo(f"Created .temmies metadata file in {assignment_path}.")
+def recursive_search(group, search):
+    """
+    Recursively search for an assignment in a group and its subgroups.
+    """
+    if group.title.lower() == search.lower() and group.submitable:
+        return group
+    for item in group.get_items():
+        # click.echo(item.title)
+        if item.submitable and (search.lower() in item.title.lower()):
+            return item
+        elif not item.submitable:
+            result = recursive_search(item, search)
+            if result:
+                return result
+    return None

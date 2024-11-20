@@ -1,3 +1,8 @@
+<!-- Centered img/banner.png -->
+<p align="center">
+  <img src="img/banner.png" />  
+</p>
+
 # temmies-cli
 Command Line tool using the [temmies library](https://github.com/Code-For-Groningen/temmies)
 

@@ -2,6 +2,7 @@ import os
 import click
 from temmies.themis import Themis
 from temmies.exercise_group import ExerciseGroup
+from tqdm import tqdm
 
 
 def parse_path(themis, path_str):
@@ -14,7 +15,8 @@ def parse_path(themis, path_str):
         year_path, course_tag = parts[0], parts[1]
         remaining_parts = parts[2:]
 
-        year = themis.get_year(int(year_path.split('-')[0]), int(year_path.split('-')[1]))
+        year = themis.get_year(
+            int(year_path.split('-')[0]), int(year_path.split('-')[1]))
         course = year.get_course_by_tag(course_tag)
 
         if remaining_parts:
@@ -42,51 +44,58 @@ def navigate_to_assignment(group, assignment_name):
     return None
 
 
-def download_assignment_files(assignment, path, test_folder):
+def download_items(session, base_url, items, destination_path, item_type):
     """
-    Download files and test cases for an assignment.
+    Download items (e.g., files or test cases) to the specified destination with a progress bar.
+    """
+    if not items:
+        click.echo(f"No {item_type} available for this assignment.")
+        return
+
+    os.makedirs(destination_path, exist_ok=True)
+    with tqdm(total=len(items), desc=f"Downloading {item_type}", unit="file") as pbar:
+        for item in items:
+            item_url = f"{base_url}{item['path']}"
+            response = session.get(item_url)
+            if response.status_code == 200:
+                file_path = os.path.join(destination_path, item['title'])
+                os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                with open(file_path, 'wb') as f:
+                    f.write(response.content)
+            pbar.update(1)  # Update the progress bar
+    click.echo(f"Downloaded {len(items)} {item_type} to '{destination_path}'.")
+
+
+def download_test_cases(assignment, path, test_folder):
+    """
+    Download test cases for the assignment with a progress bar.
+    """
+    test_cases = assignment.get_test_cases()
+    test_cases_path = os.path.join(path, test_folder)
+    download_items(assignment.session, assignment.base_url,
+                   test_cases, test_cases_path, "test cases")
+
+
+def download_files(assignment, path, file_folder):
+    """
+    Download additional files for the assignment with a progress bar.
+    """
+    files = assignment.get_files()
+    path = os.path.join(path, file_folder)
+    download_items(assignment.session, assignment.base_url,
+                   files, path, "additional files")
+
+
+def download_assignment_files(assignment, path, test_folder, file_folder):
+    """
+    Download all necessary files and test cases for the assignment with progress bars.
     """
     os.makedirs(path, exist_ok=True)
-
-    # Download test cases (if any)
     try:
-        test_cases = assignment.get_test_cases()
-        if test_cases:
-            test_cases_path = os.path.join(path, test_folder)
-            os.makedirs(test_cases_path, exist_ok=True)
-            for tc in test_cases:
-                tc_url = f"{assignment.base_url}{tc['path']}"
-                tc_response = assignment.session.get(tc_url)
-                if tc_response.status_code == 200:
-                    tc_filename = os.path.join(test_cases_path, tc['title'])
-                    with open(tc_filename, 'wb') as f:
-                        f.write(tc_response.content)
-            click.echo(f"Downloaded {len(test_cases)} test cases to '{
-                       test_cases_path}'.")
-        else:
-            click.echo("No test cases available for this assignment.")
-    except ValueError as ve:
-        click.echo(str(ve))
-    except ConnectionError as ce:
-        click.echo(str(ce))
-
-    # Download additional files (if any)
-    try:
-        files = assignment.get_files()
-        if files:
-            for file_info in files:
-                file_url = f"{assignment.base_url}{file_info['path']}"
-                file_response = assignment.session.get(file_url)
-                if file_response.status_code == 200:
-                    file_filename = os.path.join(path, file_info['title'])
-                    with open(file_filename, 'wb') as f:
-                        f.write(file_response.content)
-            click.echo(f"Downloaded {
-                       len(files)} additional files to '{path}'.")
-    except ValueError as ve:
-        click.echo(str(ve))
-    except ConnectionError as ce:
-        click.echo(str(ce))
+        download_test_cases(assignment, path, test_folder)
+        download_files(assignment, path, file_folder)
+    except (ValueError, ConnectionError) as e:
+        click.echo(str(e))
 
 
 def create_metadata_file(root_path, user, assignment_path):
@@ -121,14 +130,15 @@ def load_metadata():
     return metadata
 
 
-def create_assignment_files(group, root_path, user, test_folder):
+def create_assignment_files(group, root_path, user, test_folder, file_folder):
     """
     Download files and test cases for a group (folder or assignment) recursively.
     """
     os.makedirs(root_path, exist_ok=True)
+    download_assignment_files(group, root_path, test_folder, file_folder)
+
     if group.submitable:
         # It's an assignment
-        download_assignment_files(group, root_path, test_folder)
         create_metadata_file(root_path, user, group.path)
     else:
         # It's a folder or course
@@ -136,4 +146,4 @@ def create_assignment_files(group, root_path, user, test_folder):
         for item in items:
             item_path = os.path.join(
                 root_path, item.title.lower().replace(" ", "_"))
-            create_assignment_files(item, item_path, user, test_folder)
+            create_assignment_files(item, item_path, user, test_folder, file_folder)

@@ -15,13 +15,14 @@ def cli():
 @click.argument('path', required=False, default='.')
 @click.option('-s', '--search', help='Search for an assignment by name.')
 @click.option('-t', '--test-folder', default='.', help='Specify the name of the test cases folder.')
-def init(year_course_path, path, search, test_folder):
+@click.option('-f', '--file-folder', default='.', help='Specify the name of the file folder.')
+def init(year_course_path, path, search, test_folder, file_folder):
     """
     Initialize a new assignment or folder.
 
     YEAR_COURSE_PATH: Format '{startyear-endyear}/{courseTag}' or '{startyear-endyear}/{courseTag}/{folder_or_assignment}'.
     """
-    init_assignment(year_course_path, path, search, test_folder)
+    init_assignment(year_course_path, path, search, test_folder, file_folder)
 
 
 @cli.command()

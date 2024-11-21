@@ -6,7 +6,7 @@ from .utils import parse_path, create_assignment_files
 import tqdm
 
 
-def init_assignment(year_course_assignment, path, search, test_folder):
+def init_assignment(year_course_assignment, path, search, test_folder, file_folder):
     """
     Initialize a new assignment or course.
     """
@@ -38,12 +38,12 @@ def init_assignment(year_course_assignment, path, search, test_folder):
     if is_course:
         root_path = os.path.join(path, course.title.lower().replace(" ", "_"))
         click.echo(f"Initializing entire course '{course.title}'...")
-        create_assignment_files(course, root_path, user, test_folder)
+        create_assignment_files(course, root_path, user, test_folder, file_folder)
     else:
         root_path = os.path.join(
             path, assignment.title.lower().replace(" ", "_"))
         click.echo(f"Initializing assignment '{assignment.title}'...")
-        create_assignment_files(assignment, root_path, user, test_folder)
+        create_assignment_files(assignment, root_path, user, test_folder, file_folder)
 
     click.echo(f"Initialized at '{root_path}'.")
 

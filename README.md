@@ -31,7 +31,7 @@ temmies init <year>/<course>
 ### Optional args
 - `-s` : Search for an assignment instead of providing the link i.e. `temmies init -s "Advanced Algorithms" `.
 - `-t <path>`: Specify where you want your tests to be (relative to the parent of each assignment folder). Default is `.`.
-
+- `-f <path>`: Specify where you want your files to be (relative to the parent of each assignment folder). Default is `.`.
 ### File hierarchy example
 Once the command is ran:
 ```

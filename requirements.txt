@@ -16,5 +16,5 @@ pycparser==2.22
 requests==2.32.3
 SecretStorage==3.3.3
 soupsieve==2.6
-temmies==1.1.1
+temmies==1.2.1
 urllib3==2.2.3

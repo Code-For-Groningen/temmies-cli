@@ -5,7 +5,7 @@ with open("README.md", "r") as f:
 
 setup(
     name="temmies-cli",
-    version="1.0.1",
+    version="1.0.12",
     packages=find_packages(),
     description="A command-line tool for managing assignments using the Temmies library",
     long_description=l_description,

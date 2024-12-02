@@ -1,29 +1,19 @@
-import os
-import click
-from temmies.themis import Themis
-from temmies.exercise_group import ExerciseGroup
-from .utils import load_metadata
-from temmies.submission import Submission
+"""
+Displays the status of the current assignment, including detailed submission data if requested.
+"""
+
 from datetime import datetime
+import click
+from .utils import get_current_assignment
 
 
 def status_overview(detail):
     """Show the current assignment's status."""
-    metadata = load_metadata()
-    if not metadata:
+    try:
+        assignment = get_current_assignment()
+    except ValueError as e:
+        click.echo(str(e), err=True)
         return
-
-    username = metadata.get('username')
-    assignment_path = metadata.get('assignment_path')
-
-    themis = Themis(username)
-    assignment = ExerciseGroup(
-        themis.session,
-        assignment_path,
-        title='',
-        parent=None,
-        submitable=True
-    )
 
     status = assignment.get_status()
 
@@ -47,7 +37,11 @@ def extract_submission_info(submission_data):
         "Uploaded By": submission_data.get("uploaded_by"),
         "Created On": normalize_timestamp(submission_data.get("created_on")),
         "Updated On": normalize_timestamp(submission_data.get("updated_on")),
-        "Status": submission_data.get("status").split(": ")[1] if "status" in submission_data else None,
+        "Status": (
+            submission_data.get("status").split(": ")[1]
+            if "status" in submission_data
+            else None
+        ),
         "Language": submission_data.get("language"),
         "Files": submission_data.get("files", []),
     }
@@ -77,5 +71,5 @@ def normalize_timestamp(timestamp: str) -> str:
         dt = datetime.strptime(timestamp_part, "%a %b %d %Y %H:%M:%S")
         # Return in "YYYY-MM-DD HH:MM:SS" format
         return dt.strftime("%Y-%m-%d %H:%M:%S")
-    except Exception as e:
+    except ValueError:
         return f"Invalid timestamp: {timestamp}"

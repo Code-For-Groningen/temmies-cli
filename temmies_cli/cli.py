@@ -1,3 +1,11 @@
+"""
+Temmies CLI
+
+This script provides a command-line interface for managing assignments
+on Themis (University of Groningen code submission platform).
+"""
+
+
 import click
 from .commands.init import init_assignment
 from .commands.submit import submit_file
@@ -7,7 +15,6 @@ from .commands.status import status_overview
 @click.group()
 def cli():
     """Temmies CLI - A command line tool for managing assignments using the Temmies library."""
-    pass
 
 
 @cli.command()
@@ -19,8 +26,7 @@ def cli():
 def init(year_course_path, path, search, test_folder, file_folder):
     """
     Initialize a new assignment or folder.
-
-    YEAR_COURSE_PATH: Format '{startyear-endyear}/{courseTag}' or '{startyear-endyear}/{courseTag}/{folder_or_assignment}'.
+    '{startyear-endyear}/{courseTag}' or '{startyear-endyear}/{courseTag}/{folder_or_assignment}'.
     """
     init_assignment(year_course_path, path, search, test_folder, file_folder)
 

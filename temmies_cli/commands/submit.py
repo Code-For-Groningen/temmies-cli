@@ -24,13 +24,5 @@ def submit_file(files, quiet):
     )
 
     # TODO: Test this
-    submission = assignment.submit(list(files))
-    if not quiet:
-        click.echo("Submission results:")
-        status = submission.get_status()
-        click.echo(f"- Status: {status}")
-        results = submission.get_results()
-        if results:
-            for case, result in results.items():
-                status_text = "Passed" if result.get('passed') else "Failed"
-                click.echo(f"Test Case {case}: {status_text}")
+    
+    submission = assignment.submit(list(files), silent=quiet)

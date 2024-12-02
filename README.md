@@ -60,6 +60,8 @@ Once the command is ran:
 Submits a file to the relevant assignment. You can pass multiple files as well.
 
 Example:
+
+
 ![submit](img/submit.png)
 
 ### Optional args

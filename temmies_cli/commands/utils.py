@@ -13,7 +13,7 @@ from temmies.themis import Themis
 from temmies.exercise_group import ExerciseGroup
 import click
 from tqdm import tqdm
-
+import json
 
 def parse_path(themis, path_str):
     """
@@ -108,7 +108,7 @@ def download_assignment_files(assignment, path, test_folder, file_folder):
         click.echo(str(e))
 
 
-def create_metadata_file(root_path, user, assignment_path):
+def create_metadata_file(instance:Themis, root_path, user, assignment_path):
     """
     Create the .temmies metadata file.
     """
@@ -116,11 +116,12 @@ def create_metadata_file(root_path, user, assignment_path):
     with open(metadata_path, 'w', encoding='utf-8') as f:
         f.write(f"username={user}\n")
         f.write(f"assignment_path={assignment_path}\n")
+        f.write(f"session_cookies={instance.get_session_cookies()}\n")
     os.chmod(metadata_path, 0o600)
     click.echo(f"Created .temmies metadata file in '{root_path}'.")
 
 
-def load_metadata():
+def load_metadata() -> Themis:
     """
     Load assignment metadata from the .temmies file.
     """
@@ -137,13 +138,23 @@ def load_metadata():
     username = metadata.get('username')
     assignment_path = metadata.get('assignment_path')
 
+    # Create a Themis instance and set the session cookies
+    session_cookies = json.loads(metadata.get('session_cookies'))
+    
+    instance = Themis(session_cookies)
+    
+    # Handle session expiration
+    if instance.get_session_cookies() != session_cookies:
+        create_metadata_file(instance, os.getcwd(), username, assignment_path)
+    
     if not username or not assignment_path:
         click.echo("Missing assignment metadata in .temmies file.", err=True)
         return None
-    return metadata
+    
+    return instance, assignment_path
 
 
-def create_assignment_files(group, root_path, user, test_folder, file_folder):
+def create_assignment_files(instance:Themis, group, root_path, user, test_folder, file_folder):
     """
     Download files and test cases for a group (folder or assignment) recursively.
     """
@@ -152,7 +163,7 @@ def create_assignment_files(group, root_path, user, test_folder, file_folder):
 
     if group.submitable:
         # It's an assignment
-        create_metadata_file(root_path, user, group.path)
+        create_metadata_file(instance, root_path, user, group.path)
     else:
         # It's a folder or course
         items = group.get_items()
@@ -160,7 +171,8 @@ def create_assignment_files(group, root_path, user, test_folder, file_folder):
             item_path = os.path.join(
                 root_path, item.title.lower().replace(" ", "_"))
             create_assignment_files(
-                item, item_path, user, test_folder, file_folder)
+                instance, item, item_path, user, test_folder, file_folder
+                )
 
 def get_current_assignment():
     """
@@ -170,14 +182,10 @@ def get_current_assignment():
     Raises:
         ValueError: If metadata is missing or incomplete.
     """
-    metadata = load_metadata()
-    if not metadata:
-        raise ValueError("No assignment metadata found. Run 'temmies init' first.")
-
-    username = metadata.get('username')
-    assignment_path = metadata.get('assignment_path')
-
-    themis = Themis(username)
+    themis, assignment_path = load_metadata()
+    if not themis:
+        raise ValueError("Failed to load metadata. Make sure to run 'temmies init' first.")
+    
     return ExerciseGroup(
         themis.session,
         assignment_path,

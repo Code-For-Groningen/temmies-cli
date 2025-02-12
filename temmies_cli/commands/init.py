@@ -14,9 +14,12 @@ def init_assignment(year_course_assignment, path, search, test_folder, file_fold
     """
     Initialize a new assignment or course.
     """
+    
+    # ask for user
+    user = input("Enter your s-number (s12354): ")
+    
     # Authenticate the user
-    user = input("Enter your Themis username: ")
-    themis = Themis(user)
+    themis = Themis(user=user)
 
     if search:
         click.echo(f"Searching for assignment: {search}")
@@ -50,11 +53,11 @@ def init_assignment(year_course_assignment, path, search, test_folder, file_fold
     if is_course:
         root_path = os.path.join(path, course.title.lower().replace(" ", "_"))
         click.echo(f"Initializing entire course '{course.title}'...")
-        create_assignment_files(course, root_path, user, test_folder, file_folder)
+        create_assignment_files(themis, course, root_path, user, test_folder, file_folder)
     else:
         root_path = os.path.join(path, assignment.title.lower().replace(" ", "_"))
         click.echo(f"Initializing assignment '{assignment.title}'...")
-        create_assignment_files(assignment, root_path, user, test_folder, file_folder)
+        create_assignment_files(themis, assignment, root_path, user, test_folder, file_folder)
 
     click.echo(f"Initialized at '{root_path}'.")
 

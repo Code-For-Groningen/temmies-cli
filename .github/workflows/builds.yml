@@ -1,0 +1,130 @@
+name: Build System Packages
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-packages:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build
+
+      - name: Build Python package
+        run: python -m build
+
+      - name: Install Ruby and fpm
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ruby ruby-dev rubygems build-essential
+          sudo gem install --no-document fpm
+
+      - name: Get version
+        id: get_version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=$(grep -oP "version=\"\K[^\"]+" setup.py)" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create package directory
+        run: mkdir -p packages
+
+      - name: Build DEB package
+        run: |
+          fpm -s python -t deb \
+            --python-package-name-prefix python3 \
+            --python-bin python3 \
+            --python-pip pip3 \
+            -n temmies-cli \
+            -v ${{ steps.get_version.outputs.VERSION }} \
+            --license GPLv3 \
+            --maintainer "Boyan K. <boyan@confest.im>" \
+            --url "https://github.com/Code-For-Groningen/temmies-cli" \
+            --description "A command-line tool for managing assignments using the Temmies library" \
+            --depends python3 \
+            --depends python3-click \
+            --depends python3-requests \
+            --depends python3-lxml \
+            --depends python3-bs4 \
+            --depends python3-keyring \
+            --depends python3-tqdm \
+            --deb-compression xz \
+            -p packages/ \
+            setup.py
+
+      - name: Build RPM package
+        run: |
+          fpm -s python -t rpm \
+            --python-package-name-prefix python3 \
+            --python-bin python3 \
+            --python-pip pip3 \
+            -n temmies-cli \
+            -v ${{ steps.get_version.outputs.VERSION }} \
+            --license GPLv3 \
+            --maintainer "Boyan K. <boyan@confest.im>" \
+            --url "https://github.com/Code-For-Groningen/temmies-cli" \
+            --description "A command-line tool for managing assignments using the Temmies library" \
+            --depends python3 \
+            --depends python3-click \
+            --depends python3-requests \
+            --depends python3-lxml \
+            --depends python3-beautifulsoup4 \
+            --depends python3-keyring \
+            --depends python3-tqdm \
+            -p packages/ \
+            setup.py
+
+      - name: Build Arch package
+        run: |
+          fpm -s python -t pacman \
+            --python-package-name-prefix python \
+            --python-bin python3 \
+            --python-pip pip3 \
+            -n temmies-cli \
+            -v ${{ steps.get_version.outputs.VERSION }} \
+            --license GPLv3 \
+            --maintainer "Boyan K. <boyan@confest.im>" \
+            --url "https://github.com/Code-For-Groningen/temmies-cli" \
+            --description "A command-line tool for managing assignments using the Temmies library" \
+            --depends python \
+            --depends python-click \
+            --depends python-requests \
+            --depends python-lxml \
+            --depends python-beautifulsoup4 \
+            --depends python-keyring \
+            --depends python-tqdm \
+            -p packages/ \
+            setup.py
+
+      - name: List generated packages
+        run: ls -lh packages/
+
+      - name: Upload packages as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: system-packages
+          path: packages/*
+
+      - name: Upload packages to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: packages/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

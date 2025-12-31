@@ -4,6 +4,11 @@ on:
   release:
     types: [published]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g., v1.0.12)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -14,6 +19,12 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
+
+      - name: Checkout specific tag
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git fetch --tags
+          git checkout ${{ github.event.inputs.tag }}
 
       - uses: actions/setup-python@v5
         with:
@@ -38,8 +49,12 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "release" ]; then
             echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+            echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           else
-            echo "VERSION=$(grep -oP "version=\"\K[^\"]+" setup.py)" >> $GITHUB_OUTPUT
+            VERSION="${{ github.event.inputs.tag }}"
+            VERSION="${VERSION#v}"
+            echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+            echo "TAG=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Create package directory
@@ -90,7 +105,6 @@ jobs:
             -p packages/ \
             setup.py
 
-
       - name: List generated packages
         run: ls -lh packages/
 
@@ -101,9 +115,9 @@ jobs:
           path: packages/*
 
       - name: Upload packages to release
-        if: github.event_name == 'release'
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ steps.get_version.outputs.TAG }}
           files: packages/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

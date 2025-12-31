@@ -90,27 +90,6 @@ jobs:
             -p packages/ \
             setup.py
 
-      - name: Build Arch package
-        run: |
-          fpm -s python -t pacman \
-            --python-package-name-prefix python \
-            --python-bin python3 \
-            --python-pip pip3 \
-            -n temmies-cli \
-            -v ${{ steps.get_version.outputs.VERSION }} \
-            --license GPLv3 \
-            --maintainer "Boyan K. <boyan@confest.im>" \
-            --url "https://github.com/Code-For-Groningen/temmies-cli" \
-            --description "A command-line tool for managing assignments using the Temmies library" \
-            --depends python \
-            --depends python-click \
-            --depends python-requests \
-            --depends python-lxml \
-            --depends python-beautifulsoup4 \
-            --depends python-keyring \
-            --depends python-tqdm \
-            -p packages/ \
-            setup.py
 
       - name: List generated packages
         run: ls -lh packages/

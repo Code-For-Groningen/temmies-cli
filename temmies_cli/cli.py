@@ -5,10 +5,17 @@ from .commands.status import status_overview
 
 
 @click.group()
+@click.version_option(
+    None, 
+    "-v",
+    "--version",
+    package_name="temmies-cli",
+    prog_name="Temmies CLI",
+    message="%(prog)s version: %(version)s",
+)
 def cli():
     """Temmies CLI - A command line tool for managing assignments using the Temmies library."""
     pass
-
 
 @cli.command()
 @click.argument('year_course_path', required=False)
@@ -23,8 +30,7 @@ def init(year_course_path, path, search, test_folder, file_folder):
     YEAR_COURSE_PATH: Format '{startyear-endyear}/{courseTag}' or '{startyear-endyear}/{courseTag}/{folder_or_assignment}'.
     """
     init_assignment(year_course_path, path, search, test_folder, file_folder)
-
-
+        
 @cli.command()
 @click.argument('files', nargs=-1, required=True)
 @click.option('-q', '--quiet', is_flag=True, help="Quiet submission, don't wait for output.")
